@@ -1,16 +1,69 @@
-const mongoose = require("mongoose");
+const User =  require("../model/userModel");
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
 
-const userSchema = mongoose.Schema({
-    firstName:{
-        type: String,
-        required: true
-    },
-    email: {
-        type: String,
-        reuired: true
-    },
-    password: {
-        type: String,
-        required: true
-    },
-})
+
+const register = async (req, res) => {
+      //Destructing form / json data
+            const {firstName, lastName, email, password } = req.body;
+    try{
+
+        if (!firstName || !lastName || !email || !password){
+            return res.status(400).json({
+                sucess: false,
+                message: "All field are required"
+            });
+
+        }
+
+        const existingUser = await User.findOne({'email': email})
+        if(existingUser){
+            return res.status(400).json({
+                sucess: false,
+                message: "User Already Exists.."
+            });
+        }
+            const hashedPassword = await bcrypt.hash(password, 10);
+
+        const newUser = new User({
+            firstName, lastName, email, password: hashedPassword
+        })
+
+            await newUser.save();
+            const token =jwt.sign({id: newUser._id,
+                firstName: newUser.firstName,
+                lastName: newUser.lastName,
+                email: newUser.email,
+                isAdmin: newUser.isAdmin,   
+            }, process.env.JWT_SECRET, {expiresIn: "1d"})
+            return res.status(201).json({
+                 sucess: true,
+                message: "User Required Successfully.",
+                 token,
+                newUser
+            });
+
+
+
+
+
+
+
+
+
+
+    } catch (error){
+        return res.status(500).json({
+             sucess: false,
+                message: `Error while registering is ${error}`,
+        });
+       
+
+
+    }
+
+
+}
+module.exports ={
+    register
+}
